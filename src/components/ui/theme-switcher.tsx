@@ -1,3 +1,4 @@
+// src/components/ui/theme-switcher.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -12,7 +13,6 @@ export function ThemeSwitcher() {
   const [theme, setTheme] = useState("light");
 
   useEffect(() => {
-    // Cargar el tema guardado o el predeterminado
     const saved = localStorage.getItem("theme") || "light";
     setTheme(saved);
     applyTheme(saved);
@@ -35,9 +35,7 @@ export function ThemeSwitcher() {
 
   return (
     <div className="text-sm">
-      <label htmlFor="theme-select" className="mr-2">
-        Tema:
-      </label>
+      <label htmlFor="theme-select" className="mr-2">Tema:</label>
       <select
         id="theme-select"
         value={theme}
@@ -45,9 +43,7 @@ export function ThemeSwitcher() {
         className="px-2 py-1 rounded border border-input bg-background text-foreground"
       >
         {THEMES.map((t) => (
-          <option key={t.value} value={t.value}>
-            {t.name}
-          </option>
+          <option key={t.value} value={t.value}>{t.name}</option>
         ))}
       </select>
     </div>

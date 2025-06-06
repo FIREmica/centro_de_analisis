@@ -8,8 +8,8 @@ function getEnvWithFallback(
   envVarName: string,
   fallbackValue: string,
   isCritical: boolean = false,
-  specificPlaceholder?: string
-): string {
+  specificPlaceholder?: string // Mantener para compatibilidad
+): string | undefined { // Permitir undefined si es crítico y falta
   const envValue = process.env[envVarName];
   const placeholders = ["YOUR_PLACEHOLDER", "TU_VALOR_AQUI", "TU_FIREBASE_WEB_API_KEY"];
   if (specificPlaceholder) {
@@ -17,36 +17,35 @@ function getEnvWithFallback(
   }
 
   if (!envValue || envValue.trim() === "" || placeholders.includes(envValue)) {
+    if (isCritical && (!fallbackValue || fallbackValue.trim() === "" || placeholders.includes(fallbackValue))) {
+      console.error(
+        `Firebase Config: Error Crítico - La variable de entorno esencial "${envVarName}" falta o es un placeholder, y no tiene un valor de fallback funcional. Firebase SDK no se inicializará.`
+      );
+      return undefined; // Devuelve undefined si es crítico y falta sin fallback válido
+    }
     console.warn(
       `Firebase Config: La variable de entorno "${envVarName}" no está definida o es un placeholder. ` +
-      `Usando valor de fallback: "${fallbackValue}". ` +
-      `Asegúrate de que esto sea correcto para tu proyecto Firebase o configura la variable en tu archivo .env.local.`
+      (fallbackValue && !placeholders.includes(fallbackValue) ? `Usando valor de fallback que comienza con: "${fallbackValue.substring(0,15)}..."` : `No se usará valor de fallback válido.`)
     );
-    if (isCritical && (!fallbackValue || fallbackValue.trim() === "")) {
-      const errorMessage = `Error Crítico: La configuración esencial de Firebase "${envVarName}" falta y no tiene un valor de fallback válido.`;
-      console.error(errorMessage);
-      throw new Error(errorMessage); // Detener si una configuración crítica sin fallback está ausente.
-    }
     return fallbackValue;
   }
   return envValue;
 }
 
-// Your web app's Firebase configuration
-const firebaseApiKey = getEnvWithFallback("NEXT_PUBLIC_FIREBASE_API_KEY", "", true, "TU_FIREBASE_WEB_API_KEY"); // API Key is critical, no fallback
+// Your web app's Firebase configuration is now constructed conditionally
+const firebaseApiKey = getEnvWithFallback("NEXT_PUBLIC_FIREBASE_API_KEY", "", true, "TU_FIREBASE_WEB_API_KEY");
 const firebaseAuthDomain = getEnvWithFallback("NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN", "account-lockout-analyzer.firebaseapp.com");
-const firebaseProjectId = getEnvWithFallback("NEXT_PUBLIC_FIREBASE_PROJECT_ID", "account-lockout-analyzer", true); // Project ID is critical
+const firebaseProjectId = getEnvWithFallback("NEXT_PUBLIC_FIREBASE_PROJECT_ID", "account-lockout-analyzer", true);
 const firebaseStorageBucket = getEnvWithFallback("NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET", "account-lockout-analyzer.appspot.com");
 const firebaseMessagingSenderId = getEnvWithFallback("NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID", "1005710075157");
-const firebaseAppId = getEnvWithFallback("NEXT_PUBLIC_FIREBASE_APP_ID", "1:1005710075157:web:76b8139a68b55d29e7351c", true); // App ID is critical
-const firebaseMeasurementId = process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID; // Optional, for Analytics
+const firebaseAppId = getEnvWithFallback("NEXT_PUBLIC_FIREBASE_APP_ID", "1:1005710075157:web:76b8139a68b55d29e7351c", true);
+const firebaseMeasurementId = process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID;
 
 let app: FirebaseApp | undefined;
 let analytics: Analytics | null = null;
 
 if (typeof window !== 'undefined') { // Ensure Firebase is initialized only on the client-side
-  // Check if API Key was actually resolved (it would have thrown an error in getEnvWithFallback if critical and missing)
-  if (firebaseApiKey && firebaseProjectId && firebaseAppId) {
+  if (firebaseApiKey && firebaseProjectId && firebaseAppId) { // Asegurar que las variables críticas tienen valor y no son undefined
     const firebaseConfig = {
       apiKey: firebaseApiKey,
       authDomain: firebaseAuthDomain,
@@ -54,29 +53,28 @@ if (typeof window !== 'undefined') { // Ensure Firebase is initialized only on t
       storageBucket: firebaseStorageBucket,
       messagingSenderId: firebaseMessagingSenderId,
       appId: firebaseAppId,
-      measurementId: firebaseMeasurementId || undefined // Ensure it's undefined if not set, not an empty string
+      measurementId: firebaseMeasurementId && firebaseMeasurementId.trim() !== "" && !placeholderKeys.includes(firebaseMeasurementId) ? firebaseMeasurementId : undefined
     };
 
     if (!getApps().length) {
       try {
         app = initializeApp(firebaseConfig);
-        console.info("Firebase: App inicializada exitosamente.");
+        console.info("Firebase: App inicializada exitosamente con Project ID:", firebaseConfig.projectId);
       } catch (initError) {
-        console.error("Firebase: Falló la inicialización de la app Firebase:", initError);
-        // app remains undefined
+        console.error("Firebase: Falló la inicialización de la app Firebase:", initError, "con config:", JSON.stringify(firebaseConfig, (key, value) => key === 'apiKey' ? 'REDACTED' : value));
+        app = undefined; 
       }
     } else {
       app = getApp();
-      console.info("Firebase: App existente obtenida.");
+      console.info("Firebase: App existente obtenida con Project ID:", app.options.projectId);
     }
   
-    // Check if app was successfully initialized and Analytics is supported & configured
-    if (app && app.name && firebaseConfig.measurementId && firebaseConfig.measurementId.trim() !== "") {
+    if (app && app.name && firebaseConfig.measurementId) {
       isAnalyticsSupported().then((supported) => {
         if (supported) {
           try {
             analytics = getAnalytics(app!); 
-            console.info("Firebase: Analytics inicializado.");
+            console.info("Firebase: Analytics inicializado para Measurement ID:", firebaseConfig.measurementId);
           } catch (error) {
             console.error("Firebase: Falló la inicialización de Firebase Analytics:", error);
           }
@@ -86,15 +84,17 @@ if (typeof window !== 'undefined') { // Ensure Firebase is initialized only on t
       }).catch(err => {
           console.error("Firebase: Error verificando compatibilidad de Analytics:", err);
       });
-    } else if (app && app.name && (!firebaseConfig.measurementId || firebaseConfig.measurementId.trim() === "")) {
-        console.info("Firebase: App inicializada. NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID no proporcionado, Firebase Analytics no se inicializará.");
+    } else if (app && app.name) {
+      console.info("Firebase: App inicializada. NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID no proporcionado, es un placeholder, o está vacío. Firebase Analytics no se inicializará.");
     }
   } else {
      console.error(
-      "Firebase: Faltan configuraciones críticas (API Key, Project ID, o App ID). " +
-      "Firebase SDK no se inicializará. Funcionalidades dependientes de Firebase serán deshabilitadas."
+      "Firebase: Faltan configuraciones críticas (API Key, Project ID, o App ID) o son inválidas/placeholders. " +
+      "Firebase SDK no se inicializará. Funcionalidades dependientes de Firebase podrían estar deshabilitadas."
     );
+    app = undefined; 
   }
 }
 
 export { app, analytics };
+

@@ -9,7 +9,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 // import { AuthProvider } from '@/context/AuthContext'; // No longer directly used here
 import { Providers } from './providers'; // Import the new Providers component
-import { analytics } from '@/lib/firebase/client';
+import { analytics } from '@/lib/firebase/client'; // analytics is imported but not used here.
 
 const geistSans = Geist({ 
   variable: '--font-geist-sans',
@@ -36,6 +36,8 @@ export default function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning className="dark">
       <head>
+        {/* 
+        // TEMPORARILY COMMENTED OUT FOR DEBUGGING "WEB NO CARGA"
         {paypalClientId && 
          paypalClientId.trim() !== "" && 
          paypalClientId !== "tu_paypal_sandbox_client_id_aqui_para_sdk_js_" && // Original placeholder
@@ -47,6 +49,7 @@ export default function RootLayout({
             data-sdk-integration-source="developer-studio" 
           />
         )}
+        */}
       </head>
       <body 
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
@@ -60,3 +63,4 @@ export default function RootLayout({
     </html>
   );
 }
+

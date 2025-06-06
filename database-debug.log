@@ -1,4 +1,8 @@
-11:06:05.432 [NamespaceSystem-akka.actor.default-dispatcher-5] INFO akka.event.slf4j.Slf4jLogger - Slf4jLogger started
-11:06:06.002 [main] INFO com.firebase.server.forge.App$ - Listening at 127.0.0.1:9012
-11:10:34.110 [Thread-0] INFO com.firebase.server.forge.App$ - Attempting graceful shutdown.
-11:10:34.161 [Thread-0] INFO com.firebase.server.forge.App$ - Graceful shutdown complete.
+11:54:05.238 [NamespaceSystem-akka.actor.default-dispatcher-4] INFO akka.event.slf4j.Slf4jLogger - Slf4jLogger started
+11:54:06.288 [main] INFO com.firebase.server.forge.App$ - Listening at 127.0.0.1:9012
+11:54:10.517 [NamespaceSystem-akka.actor.default-dispatcher-5] INFO com.firebase.core.namespace.NamespaceActor - fake-server successfully activated FBKV (SurveyIdle(0)) wait: 1092ms, init: 0ms
+12:09:53.949 [FirebaseWorkerPool-1-3] WARN com.firebase.core.persistence.backend.dummy.EmulatorMetadataPersistence - Multiple projectIds are not recommended in single project mode. Requested 
+namespace account-lockout-analyzer, but the emulator is configured for fake-server. To 
+opt-out of single project mode add/set the singleProjectMode: false property in 
+the firebase.json emulators config. 
+12:09:54.056 [NamespaceSystem-akka.actor.default-dispatcher-10] INFO com.firebase.core.namespace.NamespaceActor - account-lockout-analyzer successfully activated FBKV (SurveyIdle(0)) wait: 52ms, init: 0ms

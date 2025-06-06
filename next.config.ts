@@ -18,9 +18,21 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'placehold.co',
+        port: '',
+        pathname: '/**',
+      }
     ],
   },
-  allowedDevOrigins: ['local-origin.dev', '*.local-origin.dev'],
+  allowedDevOrigins: [
+    'local-origin.dev', 
+    '*.local-origin.dev', 
+    '*.cluster-etsqrqvqyvd4erxx7qq32imrjk.cloudworkstations.dev',
+    // Adding a more general one just in case the cluster ID also changes, though less likely.
+    '*.cloudworkstations.dev' 
+  ],
   webpack: (
     config: WebpackConfiguration,
     options: { buildId: string; dev: boolean; isServer: boolean; defaultLoaders: any; nextRuntime?: string; totalPages?: number }

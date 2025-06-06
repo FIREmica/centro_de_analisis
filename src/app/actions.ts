@@ -1,3 +1,4 @@
+
 "use server";
 
 import { analyzeUrlVulnerabilities } from "@/ai/flows/analyze-url-vulnerabilities";
@@ -284,13 +285,16 @@ export async function performAnalysisAction(params: PerformAnalysisParams, isPre
         ? (allFindings.some(f => f.severity === 'Critical' || f.severity === 'High') ? 'High' : (allFindings.some(f => f.severity === 'Medium') ? 'Medium' : 'Low'))
         : (allFindings.some(f => f.severity === 'Informational') ? 'Informational' : 'Low');
 
+      const currentReportSummary = reportResultText?.substring(0, 500);
+      console.log("DEBUG: report_summary antes de guardar:", currentReportSummary); // Debugging log
+
       const analysisRecordData: Omit<AnalysisRecord, 'id' | 'created_at'> = {
         user_id: user.id,
         analysis_type: analysisPerformedTypes.length > 0 ? analysisPerformedTypes[0] as AnalysisRecord['analysis_type'] : 'URL', // Simplified: takes the first type, adjust if multi-type record needed
         target_description: finalTargetDescription.substring(0, 250), // Truncate if too long
         overall_risk_assessment: overallRisk as AnalysisRecord['overall_risk_assessment'],
         vulnerable_findings_count: reportInput.overallVulnerableFindings.length,
-        report_summary: reportResultText?.substring(0, 500), // Short summary
+        report_summary: currentReportSummary, 
         full_report_data: {
            allFindings: allFindings, // Storing all findings
            reportText: reportResultText, // Storing the full report text
@@ -391,3 +395,4 @@ export async function exportAllFindingsAsJsonAction(allFindings: VulnerabilityFi
     return JSON.stringify({ error: "Error al generar el archivo JSON.", details: error.message }, null, 2);
   }
 }
+

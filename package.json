@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "npx next dev -p 9002 --hostname 0.0.0.0",
-    "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
-    "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
+    "genkit:dev": "genkit start --ts src/ai/dev.ts",
+    "genkit:watch": "genkit start --ts --watch src/ai/dev.ts",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

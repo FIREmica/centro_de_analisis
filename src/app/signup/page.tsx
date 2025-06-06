@@ -1,18 +1,17 @@
 
-"use client";
+"use client"; // This directive stays for the Suspense wrapper and fallback
 
+import React, { Suspense, useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation"; // useSearchParams will be used in SignupPageContent
+import Link from "next/link";
+import { supabase } from "@/lib/supabase/client";
+import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UserPlus, Facebook, Loader2 } from "lucide-react";
-import Link from "next/link";
-import { useState, useEffect, useCallback } from "react";
-import { useToast } from "@/hooks/use-toast";
-import { useRouter, useSearchParams } from "next/navigation";
-import { supabase } from "@/lib/supabase/client";
-import { useAuth } from "@/context/AuthContext";
-
+import { Loader2, LogIn, UserPlus, Facebook } from "lucide-react"; // Added UserPlus and Facebook back
 
 declare global {
   interface Window {
@@ -21,71 +20,91 @@ declare global {
   }
 }
 
-export default function SignupPage() {
+// Fallback component to show while the actual content is loading
+function SignupPageFallback() {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-secondary/50 p-4">
+      <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+      <p className="text-muted-foreground">Cargando formulario de registro...</p>
+    </div>
+  );
+}
+
+// This component contains all the actual signup logic and uses useSearchParams
+function SignupPageContent() {
+  const searchParams = useSearchParams(); // Moved here
+  const router = useRouter();
+  const { session, isLoading: authIsLoading, refreshUserProfile } = useAuth();
+  const { toast } = useToast();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingFacebook, setIsLoadingFacebook] = useState(false);
   const [isFbSdkReady, setIsFbSdkReady] = useState(false);
+  const [redirectUrl, setRedirectUrl] = useState("/");
 
-  const { toast } = useToast();
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { session, isLoading: authIsLoading, refreshUserProfile } = useAuth();
+  useEffect(() => {
+    // get "redirect" query param
+    const redirect = searchParams.get("redirect");
+    setRedirectUrl(redirect || "/");
+  }, [searchParams]);
 
   useEffect(() => {
     if (!authIsLoading && session) {
-      const redirectUrl = searchParams.get('redirect') || '/';
       router.replace(redirectUrl);
     }
-  }, [session, authIsLoading, router, searchParams]);
+  }, [session, authIsLoading, router, redirectUrl]);
 
- useEffect(() => {
+  useEffect(() => {
     const facebookAppId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
     if (!facebookAppId || facebookAppId === "TU_FACEBOOK_APP_ID_AQUI") {
-      console.warn("SignupPage: Facebook App ID no está configurado. El registro con Facebook no funcionará.");
+      console.warn("SignupPageContent: Facebook App ID no está configurado.");
       setIsFbSdkReady(false);
       return;
     }
 
-    // Define fbAsyncInit. This function will be called by the Facebook SDK after it loads.
-    window.fbAsyncInit = function() {
-      console.log("SignupPage: fbAsyncInit called.");
+    window.fbAsyncInit = function () {
       if (window.FB) {
         window.FB.init({
           appId: facebookAppId,
           cookie: true,
           xfbml: true,
-          version: 'v19.0'
+          version: "v19.0",
         });
-        setIsFbSdkReady(true); // SDK is initialized and ready
-        console.log("SignupPage: Facebook SDK Initialized and ready via fbAsyncInit.");
-      } else {
-        console.error("SignupPage: fbAsyncInit called, but window.FB is not defined.");
-        setIsFbSdkReady(false);
+        setIsFbSdkReady(true);
       }
     };
 
-    // Load the SDK script if it doesn't exist
-    if (!document.getElementById('facebook-jssdk')) {
-      console.log("SignupPage: Facebook SDK script tag not found, loading it now...");
-      const script = document.createElement('script');
-      script.id = 'facebook-jssdk';
+    if (!document.getElementById("facebook-jssdk")) {
+      const script = document.createElement("script");
+      script.id = "facebook-jssdk";
       script.src = "https://connect.facebook.net/es_LA/sdk.js";
       script.async = true;
       script.defer = true;
       script.crossOrigin = "anonymous";
-      // The SDK will automatically call window.fbAsyncInit once it's loaded
       document.head.appendChild(script);
-    } else if (window.FB && typeof window.FB.init === 'function' && !isFbSdkReady) {
-      // If script tag exists, FB object might exist, but our app-specific init might not have run.
-      // Call our fbAsyncInit to ensure our app's FB.init and flag setting occurs.
-       console.log("SignupPage: FB SDK script tag present. FB object exists. Forcing our fbAsyncInit.");
+    } else if (window.FB && typeof window.FB.init === "function" && !isFbSdkReady) {
       window.fbAsyncInit();
     }
-  }, []); 
+  }, [isFbSdkReady]);
 
+  const getPremiumStatusForToast = async (userId: string): Promise<boolean> => {
+    const { data: profile, error: profileError } = await supabase
+      .from("user_profiles")
+      .select("subscription_status")
+      .eq("id", userId)
+      .single();
+
+    if (profile && !profileError) {
+      const premiumStatuses = ["active_premium", "premium_monthly", "premium_yearly", "active"];
+      return premiumStatuses.some(status =>
+        profile.subscription_status?.toLowerCase().includes(status)
+      );
+    }
+    return false;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,12 +129,6 @@ export default function SignupPage() {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      // Opcional: puedes pasar datos adicionales para el perfil del usuario aquí
-      // options: {
-      //   data: {
-      //     full_name: 'Nombre de Ejemplo', // si tienes un campo de nombre en el formulario
-      //   }
-      // }
     });
 
     if (error) {
@@ -144,7 +157,7 @@ export default function SignupPage() {
         variant: "destructive",
         title: title,
         description: description,
-        duration: 15000, 
+        duration: 15000,
       });
     } else if (data.user && data.session) {
       toast({
@@ -153,28 +166,22 @@ export default function SignupPage() {
         variant: "default",
         duration: 3000,
       });
-      console.log("INFO (SignupPage): Registro y sesión exitosos para:", data.user.email);
-      console.log("INFO (SignupPage): El trigger 'handle_new_user' en Supabase debería haber creado un UserProfile para:", data.user.id, "con estado 'free'.");
       await refreshUserProfile();
-      const redirectUrl = searchParams.get('redirect') || '/';
-      router.push(redirectUrl); 
+      router.push(redirectUrl);
     } else if (data.user) {
-         toast({
-            title: "Registro Casi Completo",
-            description: "Tu cuenta ha sido creada. Si la configuración de Supabase lo requiere, revisa tu correo electrónico para confirmar tu cuenta. Luego podrás iniciar sesión.",
-            variant: "default",
-            duration: 7000,
-        });
-        console.log("INFO (SignupPage): Registro exitoso (posiblemente requiere confirmación) para:", data.user.email);
-        console.log("INFO (SignupPage): El trigger 'handle_new_user' en Supabase debería haber creado un UserProfile para:", data.user.id, "con estado 'free'.");
-        router.push('/login'); 
+      toast({
+        title: "Registro Casi Completo",
+        description: "Tu cuenta ha sido creada. Si la configuración de Supabase lo requiere, revisa tu correo electrónico para confirmar tu cuenta. Luego podrás iniciar sesión.",
+        variant: "default",
+        duration: 7000,
+      });
+      router.push('/login');
     } else {
-        toast({
-            variant: "destructive",
-            title: "Error de Registro Inesperado",
-            description: "Ocurrió un problema inesperado durante el registro. Por favor, inténtalo de nuevo.",
-        });
-         console.error("ERROR (SignupPage): Respuesta inesperada de Supabase Auth durante el signUp:", data);
+      toast({
+        variant: "destructive",
+        title: "Error de Registro Inesperado",
+        description: "Ocurrió un problema inesperado durante el registro. Por favor, inténtalo de nuevo.",
+      });
     }
     setIsLoading(false);
   };
@@ -182,91 +189,60 @@ export default function SignupPage() {
   const handleFacebookLogin = async () => {
     setIsLoadingFacebook(true);
 
-    if (!isFbSdkReady || !window.FB || typeof window.FB.login !== 'function') {
+    if (!isFbSdkReady || !window.FB || typeof window.FB.login !== "function") {
       toast({
         variant: "destructive",
         title: "Error de Facebook Login",
-        description: "El SDK de Facebook no está listo o no se pudo inicializar. Por favor, espera un momento e inténtalo de nuevo.",
+        description: "El SDK de Facebook no está listo o no se pudo inicializar.",
       });
       setIsLoadingFacebook(false);
       return;
     }
 
-    window.FB.login(async (loginResponse: any) => {
-      console.log('Respuesta de FB.login (Signup):', loginResponse);
-      if (loginResponse.authResponse) {
-        const accessToken = loginResponse.authResponse.accessToken;
-        window.FB.api('/me', {fields: 'id,name,email'}, async function(profileResponse: any) {
-           console.log('Respuesta de FB.api /me (Signup):', profileResponse);
-           if (profileResponse && !profileResponse.error) {
-            toast({
-              title: `Conexión con Facebook Exitosa (Frontend)`,
-              description: `¡Hola, ${profileResponse.name}! (ID: ${profileResponse.id}). Ahora intentando autenticar con el backend...`,
-              variant: "default",
-              duration: 4000,
-            });
-            
-            try {
-              const res = await fetch("/api/auth/facebook", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ accessToken }),
-              });
-
-              const data = await res.json();
-
-              if (!res.ok) {
-                throw new Error(data.error || "Error inesperado del servidor durante la autenticación con Facebook.");
-              }
-
-              toast({
-                title: "Autenticación Completa Exitosa",
-                description: "Te has autenticado correctamente con Facebook a través de nuestro servidor.",
-                variant: "default",
-                duration: 5000,
-              });
-
-              await refreshUserProfile();
-              router.push(searchParams.get("redirect") || "/");
-
-            } catch (err: any) {
-              console.error("Error en la llamada a /api/auth/facebook (Signup):", err);
-              toast({
-                variant: "destructive",
-                title: "Error de Autenticación con Servidor",
-                description: err.message || "No se pudo completar la autenticación con Facebook en el servidor.",
-                duration: 7000,
-              });
-            }
+    window.FB.login(async (response: any) => {
+      if (response.authResponse) {
+        const accessToken = response.authResponse.accessToken;
+        try {
+          const res = await fetch("/api/auth/facebook", { // This is the GET endpoint for initiating
+            method: "GET", // Changed to GET for the initial redirect
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "Error del servidor al iniciar autenticación con Facebook.");
+          if (data.url) { // If Supabase provided a redirect URL
+            window.location.href = data.url; // Redirect the user to Facebook
           } else {
-             toast({
-              variant: "destructive",
-              title: "Error al obtener perfil de Facebook",
-              description: `No se pudo obtener tu información de Facebook después del login: ${profileResponse?.error?.message || 'Error desconocido.'}`,
+            // This block might be hit if /api/auth/facebook is changed to POST and expects a token,
+            // which is the alternative flow. For now, direct Supabase OAuth is simpler.
+            // Or if Supabase SDK direct call is preferred:
+            const { error: oauthError } = await supabase.auth.signInWithOAuth({
+              provider: 'facebook',
+              options: {
+                redirectTo: `${window.location.origin}/auth/callback`
+              }
             });
+            if (oauthError) throw oauthError;
           }
-        });
+        } catch (err: any) {
+          toast({
+            variant: "destructive",
+            title: "Error de Autenticación con Facebook",
+            description: err.message,
+          });
+          setIsLoadingFacebook(false);
+        }
       } else {
         toast({
           variant: "destructive",
-          title: "Conexión con Facebook Cancelada",
-          description: "No se completó el proceso con Facebook.",
+          title: "Inicio de sesión cancelado",
+          description: "No se completó el inicio con Facebook.",
         });
+        setIsLoadingFacebook(false);
       }
-      setIsLoadingFacebook(false);
-    }, { scope: 'email,public_profile' });
+    }, { scope: "email,public_profile" });
   };
-
-
-  if (authIsLoading && !session) {
-     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-secondary/50 p-4">
-            <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-            <p className="text-muted-foreground">Cargando...</p>
-        </div>
-    );
+  
+  if (authIsLoading && !session) { // Show loader if auth state is loading AND there's no session yet
+     return <SignupPageFallback />; // Use the same fallback for initial auth check
   }
 
   return (
@@ -338,14 +314,14 @@ export default function SignupPage() {
             <p className="mx-4 text-center text-sm text-muted-foreground">O</p>
           </div>
 
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="w-full border-blue-600 text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:border-blue-500 dark:text-blue-500 dark:hover:bg-blue-900/30 dark:hover:text-blue-400"
             onClick={handleFacebookLogin}
             disabled={isLoading || isLoadingFacebook || !isFbSdkReady}
           >
             <Facebook className="mr-2 h-5 w-5" />
-             {isLoadingFacebook ? "Conectando..." : (isFbSdkReady ? "Registrarse con Facebook" : "Cargando Facebook...")}
+            {isLoadingFacebook ? "Conectando..." : (isFbSdkReady ? "Registrarse con Facebook" : "Cargando Facebook...")}
           </Button>
 
           <div className="mt-6 text-center text-sm">
@@ -356,19 +332,21 @@ export default function SignupPage() {
           </div>
           <div className="mt-4 text-center text-xs text-muted-foreground p-3 bg-muted rounded-md">
             <strong>Nota Importante:</strong> El registro con Email/Contraseña usa Supabase Auth.
-            El registro con Facebook actualmente llama a un endpoint de backend (`/api/auth/facebook`) que necesita ser implementado para una autenticación segura y completa con Supabase.
+            El registro con Facebook inicia el flujo OAuth de Supabase.
           </div>
         </CardContent>
       </Card>
     </div>
   );
 }
-    
 
-    
-
-    
-
-    
+// Default export for the page route
+export default function SignupPage() {
+  return (
+    <Suspense fallback={<SignupPageFallback />}>
+      <SignupPageContent />
+    </Suspense>
+  );
+}
 
     

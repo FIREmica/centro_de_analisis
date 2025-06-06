@@ -2,7 +2,7 @@
 "use client";
 
 import Link from 'next/link';
-import { ShieldCheck, UserCircle, LogIn, LogOut, Menu, LayoutDashboard } from 'lucide-react';
+import { ShieldCheck, UserCircle, LogIn, LogOut, Menu, Sun, Moon, Palette, Monitor } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useAuth } from '@/context/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -13,12 +13,19 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useTheme } from '@/context/ThemeContext';
 import { useState } from 'react';
 
 const navItems = [
   { href: "/", label: "Inicio" },
   { href: "/#servicios", label: "Servicios" },
-  { href: "/dashboard", label: "Dashboard" }, // New Dashboard Link
+  { href: "/dashboard", label: "Dashboard" },
   { href: "/resources", label: "Recursos" },
   { href: "/about", label: "Sobre Nosotros" },
   { href: "/contact", label: "Contacto" },
@@ -26,11 +33,12 @@ const navItems = [
 
 export function AppHeader() {
   const { session, user, isLoading, signOut } = useAuth();
+  const { theme, setTheme, resolvedTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
-    setMobileMenuOpen(false); // Close menu on sign out
+    setMobileMenuOpen(false); 
   };
 
   const renderNavLinks = (isMobile = false) => (
@@ -47,6 +55,34 @@ export function AppHeader() {
       </Link>
     ))
   );
+  
+  const ThemeSwitcherButton = () => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="icon">
+          {resolvedTheme === 'light' && <Sun className="h-[1.2rem] w-[1.2rem] transition-all" />}
+          {resolvedTheme === 'dark' && <Moon className="h-[1.2rem] w-[1.2rem] transition-all" />}
+          {resolvedTheme === 'blue' && <Palette className="h-[1.2rem] w-[1.2rem] transition-all" />}
+          <span className="sr-only">Toggle theme</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => setTheme('light')}>
+          <Sun className="mr-2 h-4 w-4" /> Light
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme('dark')}>
+          <Moon className="mr-2 h-4 w-4" /> Dark
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme('blue')}>
+          <Palette className="mr-2 h-4 w-4" /> Blue
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme('system')}>
+          <Monitor className="mr-2 h-4 w-4" /> System
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -62,15 +98,12 @@ export function AppHeader() {
           {renderNavLinks()}
         </nav>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <ThemeSwitcherButton />
           {isLoading ? (
-            <div className="flex items-center gap-2">
-              <Skeleton className="h-8 w-20" />
-              <Skeleton className="h-8 w-8 md:hidden" /> {/* Skeleton for mobile trigger */}
-            </div>
+            <Skeleton className="h-8 w-20" />
           ) : session ? (
             <>
-              {/* Conceptual User Profile Button - could link to /dashboard or a dedicated /profile page */}
               <Button variant="ghost" size="sm" className="hidden md:inline-flex text-foreground" asChild>
                 <Link href="/dashboard"> 
                   <UserCircle className="mr-2 h-4 w-4" />
@@ -95,12 +128,11 @@ export function AppHeader() {
                 className="bg-primary hover:bg-primary/90 text-primary-foreground"
               >
                 <LogIn className="mr-2 h-4 w-4" />
-                Iniciar Sesión / Registrarse
+                Iniciar Sesión
               </Button>
             </Link>
           )}
 
-          {/* Mobile Menu */}
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
             <SheetTrigger asChild className="md:hidden">
               <Button variant="outline" size="icon">

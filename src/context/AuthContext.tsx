@@ -5,8 +5,6 @@ import type { Session, User } from '@supabase/supabase-js';
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase as sbClient } from '@/lib/supabase/client'; // Use the potentially null client from our robust initializer
 import type { UserProfile } from '@/types/ai-schemas';
-// If you have generated Supabase types, you can uncomment the next line
-// import type { Database } from '@/types/supabase';
 
 interface AuthContextType {
   session: Session | null;
@@ -21,7 +19,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const supabase = sbClient; // Use the imported client
+  const supabase = sbClient; 
   
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -29,8 +27,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isPremium, setIsPremium] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  const clearUserState = () => {
+    setSession(null);
+    setUser(null);
+    setUserProfile(null);
+    setIsPremium(false);
+  };
+
   const fetchUserProfile = useCallback(async (userIdToFetch: string | undefined) => {
-    if (!userIdToFetch || !supabase) { // Check if supabase client is available
+    if (!userIdToFetch || !supabase) {
       setUserProfile(null);
       setIsPremium(false);
       if (!supabase) console.warn("AuthContext: Supabase client not available for fetchUserProfile.");
@@ -56,6 +61,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const newIsPremium = premiumStatuses.some(status => currentSubscriptionStatus.includes(status));
         setIsPremium(newIsPremium);
       } else {
+        console.log(`AuthContext: No profile found for user ID ${userIdToFetch}. Setting profile to null and isPremium to false.`);
         setUserProfile(null);
         setIsPremium(false);
       }
@@ -64,38 +70,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUserProfile(null);
         setIsPremium(false);
     }
-  }, [supabase]); // Add supabase to dependency array
+  }, [supabase]);
 
   useEffect(() => {
     if (!supabase) {
       setIsLoading(false);
-      setSession(null);
-      setUser(null);
-      setUserProfile(null);
-      setIsPremium(false);
+      clearUserState();
       console.warn("AuthContext: Supabase client not initialized. Auth features disabled for this session.");
-      return () => {}; // Return an empty cleanup function
+      return () => {}; 
     }
 
     const getInitialSessionAndProfile = async () => {
       setIsLoading(true);
-      const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) {
-        console.error("AuthContext: Error getting initial session:", sessionError.message);
+      try {
+        const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error("AuthContext: Error getting initial session:", sessionError.message);
+          clearUserState();
+        } else if (currentSession) {
+          setSession(currentSession);
+          setUser(currentSession.user);
+          await fetchUserProfile(currentSession.user.id);
+        } else {
+          clearUserState();
+        }
+      } catch (e: any) {
+        console.error("AuthContext: Exception during initial session/profile load:", e.message);
+        clearUserState();
+      } finally {
+        setIsLoading(false);
       }
-      
-      setSession(currentSession);
-      const currentUser = currentSession?.user ?? null;
-      setUser(currentUser);
-
-      if (currentUser) {
-        await fetchUserProfile(currentUser.id);
-      } else {
-        setUserProfile(null);
-        setIsPremium(false);
-      }
-      setIsLoading(false);
     };
 
     getInitialSessionAndProfile();
@@ -103,17 +108,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, newSession) => {
         setIsLoading(true);
-        setSession(newSession);
-        const currentUser = newSession?.user ?? null;
-        setUser(currentUser);
-
-        if (currentUser) {
-          await fetchUserProfile(currentUser.id);
-        } else {
-          setUserProfile(null);
-          setIsPremium(false);
+        try {
+          if (newSession) {
+            setSession(newSession);
+            setUser(newSession.user);
+            await fetchUserProfile(newSession.user.id);
+          } else {
+            clearUserState();
+          }
+        } catch (e: any) {
+          console.error("AuthContext: Exception during onAuthStateChange handling:", e.message);
+          clearUserState();
+        } finally {
+          setIsLoading(false);
         }
-        setIsLoading(false);
       }
     );
 
@@ -125,28 +133,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOutUser = async () => {
     if (!supabase) {
       console.warn("AuthContext: Supabase client not initialized. Cannot sign out.");
-      // Simulate sign out locally if Supabase is not available
       setIsLoading(true);
-      setSession(null);
-      setUser(null);
-      setUserProfile(null);
-      setIsPremium(false);
+      clearUserState();
       setIsLoading(false);
       return;
     }
     setIsLoading(true);
     await supabase.auth.signOut();
-    // Auth listener will handle setting session, user, profile to null, and isPremium to false.
+    // Auth listener should handle clearing user state.
+    clearUserState(); // Explicitly clear state on sign out as well
+    setIsLoading(false);
   };
 
   const refreshUserProfileData = useCallback(async () => {
-    const currentUser = user; 
-    if (currentUser && supabase) { // Check supabase client
-      await fetchUserProfile(currentUser.id);
+    const currentAuthUser = user; // Use state variable for consistency
+    if (currentAuthUser && supabase) { 
+      await fetchUserProfile(currentAuthUser.id);
     } else if (!supabase) {
       console.warn("AuthContext: Supabase client not initialized. Cannot refresh profile.");
+    } else {
+      // console.log("AuthContext: No current user to refresh profile for.");
     }
-  }, [user, supabase, fetchUserProfile]); // Add supabase to dependency array
+  }, [user, supabase, fetchUserProfile]);
 
   const value = {
     session,

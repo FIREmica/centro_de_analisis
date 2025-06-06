@@ -134,9 +134,9 @@ export default function DashboardPage() {
                 <History className="mr-3 h-8 w-8 text-primary" />
                 Dashboard de Análisis
               </h1>
-              <p className="text-lg text-muted-foreground mt-1">
+              <div className="text-lg text-muted-foreground mt-1">
                 Bienvenido, {userProfile?.full_name || user?.email?.split('@')[0] || 'Usuario'}. Aquí puedes ver y gestionar tus análisis de seguridad.
-              </p>
+              </div>
             </div>
             <Button asChild className="mt-4 sm:mt-0">
                 <Link href="/"><FileText className="mr-2 h-4 w-4"/> Realizar Nuevo Análisis</Link>
@@ -237,7 +237,7 @@ export default function DashboardPage() {
                  <CardDescription>Gestiona tu plan y detalles de facturación.</CardDescription>
             </CardHeader>
             <CardContent>
-                <p className="text-muted-foreground">Tu estado actual de suscripción: {isPremium ? <Badge className="ml-2 bg-green-500 text-white">Premium Activa</Badge> : <Badge variant="outline" className="ml-2">Gratuita</Badge>}</p>
+                <div className="text-muted-foreground">Tu estado actual de suscripción: {isPremium ? <Badge className="ml-2 bg-green-500 text-white">Premium Activa</Badge> : <Badge variant="outline" className="ml-2">Gratuita</Badge>}</div>
                 <p className="text-sm text-muted-foreground mt-2">Aquí podrás cambiar tu plan, ver historial de pagos, etc.</p>
             </CardContent>
         </Card>
@@ -255,3 +255,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

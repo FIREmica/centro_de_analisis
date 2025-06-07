@@ -1,5 +1,6 @@
 "use client";
 
+<<<<<<< HEAD
 import { useEffect, useState } from "react";
 
 const THEMES = [
@@ -51,5 +52,24 @@ export function ThemeSwitcher() {
         ))}
       </select>
     </div>
+=======
+import './globals.css'; // Keep for basic styling, but can be removed if error persists
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="es">
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Centro de Análisis</title> {/* Basic title */}
+      </head>
+      <body>
+        {children}
+      </body>
+    </html>
+>>>>>>> a70ea8f (a)
   );
 }

@@ -1,3 +1,4 @@
+// next.config.ts
 import type { NextConfig } from 'next';
 import type { Configuration as WebpackConfiguration } from 'webpack';
 
@@ -43,13 +44,11 @@ const nextConfig: NextConfig = {
   ) => {
     const handlebarsLibIndexRule = /node_modules\/handlebars\/lib\/index\.js$/;
 
-    if (!config.module) config.module = {};
-    if (!config.module.noParse) config.module.noParse = [];
+    config.module ??= {};
+    config.module.noParse ??= [];
 
     if (Array.isArray(config.module.noParse)) {
       config.module.noParse.push(handlebarsLibIndexRule);
-    } else if (config.module.noParse instanceof RegExp) {
-      config.module.noParse = [config.module.noParse, handlebarsLibIndexRule];
     } else {
       config.module.noParse = [handlebarsLibIndexRule];
     }

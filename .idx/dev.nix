@@ -1,28 +1,35 @@
-# To learn more about how to use Nix to configure your environment
-# see: https://firebase.google.com/docs/studio/customize-workspace
-{pkgs}: {
-  # Which nixpkgs channel to use.
-  channel = "stable-24.11"; # or "unstable"
-  # Use https://search.nixos.org/packages to find packages
+{ pkgs }:
+
+{
+  # Canal que define la versión base de los paquetes
+  channel = "stable-24.11";
+
+  # Paquetes que se instalarán en el entorno de desarrollo
   packages = [
-    pkgs.nodejs_20
-    pkgs.zulu
+    pkgs.nodejs_20   # Incluye npm
+    pkgs.yarn        # Yarn explícitamente
+    pkgs.zulu        # JVM si usás herramientas como Firebase CLI
   ];
-  # Sets environment variables in the workspace
+
+  # Variables de entorno personalizadas (opcional)
   env = {};
+
   idx = {
-    # Search for the extensions you want on https://open-vsx.org/ and use "publisher.id"
+    # Extensiones del editor de código (VS Code en IDX)
     extensions = [
-      # "vscodevim.vim"
+      # Ejemplo: "esbenp.prettier-vscode"
     ];
+
     workspace = {
       onCreate = {
+        # Archivos que se abren automáticamente al crear el entorno
         default.openFiles = [
           "src/app/page.tsx"
         ];
       };
     };
-    # Enable previews and customize configuration
+
+    # Configuración de vistas previas (Preview Environment)
     previews = {
       enable = true;
       previews = {
